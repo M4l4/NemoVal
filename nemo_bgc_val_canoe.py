@@ -42,8 +42,8 @@ import nemo_plot_tools as npt
 #                   'data2_args', 'anom_args'.
 #===================================================================================
 
-runid = 'oda-o2c-cv2'
-year = '1787'
+runid = 'nrb'
+year = '1000'
 ##The ptrc input file
 ifile_ptrc = ('/raid/ra40/data/ncs/nemo_out/' + runid + '/'
                   'mc_' + runid + '_1m_' + year + '0101_' +
@@ -138,7 +138,7 @@ plots = [
          #},
 
          {'ifile' : ifile_ptrc,
-          'variables' : ['PHY', 'ZOO'],
+          'variables' : ['PHYC', 'PHY2C', 'ZOO', 'ZOO2'],
           'plot_type' : 'global_map',
          },
 
@@ -157,7 +157,7 @@ plots = [
          },
 
          {'ifile' : ifile_ptrc,
-          'variables' : ['PHY', 'ZOO'],
+          'variables' : ['PHYC', 'PHY2C', 'ZOO', 'ZOO2'],
           'plot_type' : 'section',
           'ax_args' : {'ylim' : [200, 0]}
          },
@@ -179,6 +179,7 @@ obs4comp = {'NO3' : obs_root + 'uncs_orca2_data_data_n_an_nomask.nc',
             'O2'  : obs_root + 'umol-l_uncs_orca2_data_data_o_an_nomask.nc',
             'Alkalini' : obs_root + 'uncs_orca2_data_data_Alk_nomask.nc',
             'Cflx' : obs_root + 'uncs_cflx_park_takahasi_1990-2009.nc',
+            #'Cflx' : obs_root + 'landschuetzer_fgco2.nc',
             'EPC100' : obs_root + 'mol-m2-s_AWI_export.nc',
            }
 

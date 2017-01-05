@@ -42,8 +42,8 @@ import nemo_plot_tools as npt
 #                   'data2_args', 'anom_args'.
 #===================================================================================
 
-runid = 'oda-o2c-cv2'
-year = '1787'
+runid = 'nrb'
+year = '1000'
 ##The ptrc input file
 ifile_ptrc = ('/raid/ra40/data/ncs/nemo_out/' + runid + '/'
                   'mc_' + runid + '_1m_' + year + '0101_' +
@@ -62,105 +62,111 @@ ifile_diad = ('/raid/ra40/data/ncs/nemo_out/' + runid + '/'
 
 # The list of plots
 plots = [
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['NO3', 'O2'],
+          #'plot_type' : 'global_map_comp',
+          #'plot_depth' : 5,
+
+         #},
+
          {'ifile' : ifile_ptrc,
           'variables' : ['NO3', 'O2'],
-          'plot_type' : 'global_map_comp',
-          'plot_depth' : 5,
-
-         },
-
-         {'ifile' : ifile_ptrc,
-          'variables' : ['NO3', 'O2'],
-          'plot_type' : 'global_map_comp',
-          'plot_depth' : 2000,
-         },
-
-         {'ifile' : ifile_ptrc,
-          'variables' : ['DIC'],
-          'plot_type' : 'global_map_comp',
-          #'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
-                      #'data2_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
-                      #}
-         },
-
-         {'ifile' : ifile_ptrc,
-          'variables' : ['DIC'],
-          'plot_type' : 'global_map_comp',
-          #'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
-                      #'data2_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
-                      #}
-          'plot_depth' : 2000,
+          'plot_type' : 'taylor_plot',
          },
 
 
          #{'ifile' : ifile_ptrc,
-          #'variables' : ['Alkalini'],
+          #'variables' : ['NO3', 'O2'],
           #'plot_type' : 'global_map_comp',
+          #'plot_depth' : 2000,
+         #},
+
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['DIC'],
+          #'plot_type' : 'global_map_comp',
+          ##'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
+                      ##'data2_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
+                      ##}
+         #},
+
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['DIC'],
+          #'plot_type' : 'global_map_comp',
+          ##'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
+                      ##'data2_args' : {'pcolor_args' :{'vmin' : 1800, 'vmax': 2200}},
+                      ##}
+          #'plot_depth' : 2000,
          #},
 
 
-         {'ifile' : ifile_diad,
-          'variables' : ['Cflx'],
-          'plot_type' : 'global_map_comp',
-          'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : -2e-7,
-                                                      'vmax': 2e-7,
-                                                      'cmap' : npt.anom_cmap()
-                                                      }
-                                      },
-                      'data2_args' : {'pcolor_args' :{'vmin' : -2e-7,
-                                                      'vmax': 2e-7,
-                                                      'cmap' : npt.anom_cmap()
-                                                      }
-                                      },
-                      'anom_args'  : {'pcolor_args' :{'vmin' : -2e-7,
-                                                      'vmax': 2e-7}
-                                     }
+         ##{'ifile' : ifile_ptrc,
+          ##'variables' : ['Alkalini'],
+          ##'plot_type' : 'global_map_comp',
+         ##},
 
-                      }
-         },
-
-         {'ifile' : ifile_diad,
-          'variables' : ['EPC100'],
-          'plot_type' : 'global_map_comp',
-          'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 2e-7}},
-                      'data2_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 2e-7}},
-                      }
-         },
-
-         {'ifile' : ifile_diad,
-          'variables' : ['Oflx', 'Nfix', 'PPPHY', 'EPC100'],
-          'plot_type' : 'global_map',
-         },
 
          #{'ifile' : ifile_diad,
-          #'variables' : ['LNFe', 'LNnut'],
+          #'variables' : ['Cflx'],
+          #'plot_type' : 'global_map_comp',
+          #'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : -2e-7,
+                                                      #'vmax': 2e-7,
+                                                      #'cmap' : npt.anom_cmap()
+                                                      #}
+                                      #},
+                      #'data2_args' : {'pcolor_args' :{'vmin' : -2e-7,
+                                                      #'vmax': 2e-7,
+                                                      #'cmap' : npt.anom_cmap()
+                                                      #}
+                                      #},
+                      #'anom_args'  : {'pcolor_args' :{'vmin' : -2e-7,
+                                                      #'vmax': 2e-7}
+                                     #}
+
+                      #}
+         #},
+
+         #{'ifile' : ifile_diad,
+          #'variables' : ['EPC100'],
+          #'plot_type' : 'global_map_comp',
+          #'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 2e-7}},
+                      #'data2_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 2e-7}},
+                      #}
+         #},
+
+         #{'ifile' : ifile_diad,
+          #'variables' : ['Oflx', 'Nfix', 'PPPHY', 'EPC100'],
           #'plot_type' : 'global_map',
          #},
 
-         {'ifile' : ifile_ptrc,
-          'variables' : ['PHY', 'ZOO'],
-          'plot_type' : 'global_map',
-         },
+         ##{'ifile' : ifile_diad,
+          ##'variables' : ['LNFe', 'LNnut'],
+          ##'plot_type' : 'global_map',
+         ##},
 
-         {'ifile' : ifile_ptrc,
-          'variables' : ['NCHL'],
-          'plot_type' : 'global_map_comp',
-          'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 0.5}},
-                      'data2_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 0.5}},
-                      'anom_args'  : {'pcolor_args' :{'vmin' : -0.25, 'vmax': 0.25}}
-                      }
-         },
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['PHY', 'ZOO'],
+          #'plot_type' : 'global_map',
+         #},
 
-         {'ifile' : ifile_ptrc,
-          'variables' : ['NO3', 'O2', 'DIC'],#, 'Alkalini'],
-          'plot_type' : 'section_comp',
-         },
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['NCHL'],
+          #'plot_type' : 'global_map_comp',
+          #'kwargs' : {'data1_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 0.5}},
+                      #'data2_args' : {'pcolor_args' :{'vmin' : 0, 'vmax': 0.5}},
+                      #'anom_args'  : {'pcolor_args' :{'vmin' : -0.25, 'vmax': 0.25}}
+                      #}
+         #},
 
-         {'ifile' : ifile_ptrc,
-          'variables' : ['PHY', 'ZOO'],
-          'plot_type' : 'section',
-          'ax_args' : {'ylim' : [200, 0]}
-         },
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['NO3', 'O2', 'DIC'],#, 'Alkalini'],
+          #'plot_type' : 'section_comp',
+         #},
+
+         #{'ifile' : ifile_ptrc,
+          #'variables' : ['PHY', 'ZOO'],
+          #'plot_type' : 'section',
+          #'ax_args' : {'ylim' : [200, 0]}
+         #},
 
         ]
 
