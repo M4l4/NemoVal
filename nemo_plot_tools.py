@@ -111,10 +111,10 @@ def load(ifile_fp, varname, mask_0=True):
     if not os.path.isfile('remap_' + ifile):
         if mask_0:
             cdo.remapdis('r360x180', input='-timmean -setctomiss,0 '
-                         + ifile_fp, output='remap_' + ifile)
+                         + ifile_fp, output='remap_' + ifile, options='-L')
         else:
             cdo.remapdis('r360x180', input='-timmean '
-                         + ifile_fp, output='remap_' + ifile)
+                         + ifile_fp, output='remap_' + ifile, options='-L')
 
     nc = Dataset('remap_' + ifile, 'r' )
     ncvar = nc.variables[varname]

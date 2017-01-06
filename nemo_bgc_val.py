@@ -45,11 +45,11 @@ import nemo_plot_tools as npt
 runid = 'oda-o2c-cv2'
 year = '1787'
 ##The ptrc input file
-ifile_ptrc = ('/raid/ra40/data/ncs/nemo_out/' + runid + '/'
-                  'mc_' + runid + '_1m_' + year + '0101_' +
-                   year + '1231_ptrc_t.nc.001')
+ifile_ptrc = ('/raid/ra40/data/ncs/nemo_out/oda/' +
+              'mc_' + runid + '_1m_' + year + '0101_' +
+               year + '1231_ptrc_t.nc.001')
 
-ifile_diad = ('/raid/ra40/data/ncs/nemo_out/' + runid + '/'
+ifile_diad = ('/raid/ra40/data/ncs/nemo_out/oda/' +
                   'mc_'+ runid + '_1m_' + year + '0101_' +
                    year + '1231_diad_t.nc.001')
 
