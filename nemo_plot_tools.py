@@ -9,35 +9,21 @@ import os
 import shutil
 import subprocess
 
-import brewer2mpl
 import cdo
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import numpy as np
 import numpy.ma as ma
 from mpl_toolkits.basemap import Basemap
 from netCDF4 import Dataset
 
 import taylor
-from colormaps import viridis
 
 cdo = cdo.Cdo()
 
 plt.close('all')
 font = {'size': 12}
 plt.rc('font', **font)
-
-
-def discrete_cmap(n, base_cmap=None):
-    """Create an n-bin discrete colormap from the specified input map"""
-
-    # Note that if base_cmap is a string or None, you can simply do
-    # return plt.cm.get_cmap(base_cmap, N)
-    # The following works for string, None, or a colormap instance:
-    # https://gist.github.com/jakevdp/91077b0cae40f8f8244a
-    base = plt.cm.get_cmap(base_cmap)
-    color_list = base(np.linspace(0, 1, n))
-    cmap_name = base.name + str(n)
-    return base.from_list(cmap_name, color_list, n)
 
 
 def default_pcolor_args(data, anom=False):
@@ -50,7 +36,7 @@ def default_pcolor_args(data, anom=False):
         vmin = -1 * anom_max
         vmax = anom_max
         # Anomaly cmap
-        cmap = anom_cmap()
+        cmap = cm.get_cmap("RdBu")
     else:
         # otherwise, center around the mean
         vmin = data.mean() - data.std() * 3.0
@@ -61,7 +47,7 @@ def default_pcolor_args(data, anom=False):
         if vmin < data.min():
             vmin = data.min()
         # New mpl, colorblind friendly, continuously varying, default cmap
-        cmap = viridis
+        cmap = cm.get_cmap("viridis")
 
     d = {'vmin': vmin,
          'vmax': vmax,
@@ -133,26 +119,18 @@ def round_to_signif_figs(x, sigfigs):
     return xsgn * np.around(mantissas, decimals=sigfigs - 1) * 10.0 ** omags
 
 
-def anom_cmap():
-    """return a discrete blue-red cmap from colorbrewer"""
-    ncols = 11
-    cmap_anom = brewer2mpl.get_map('RdBu', 'diverging', ncols,
-                                   reverse=True).mpl_colormap
-    cmap_anom = discrete_cmap(ncols, cmap_anom)
-    return cmap_anom
-
-
 def load(ifile_fp, varname, mask_0=True):
     """Time average ifile, interpolate to 1x1 degrees, and return var, lon, lat"""
 
     path, ifile = os.path.split(ifile_fp)
-    if not os.path.isfile('remap_' + ifile):
+    if not os.path.isfile('remap_new_' + ifile):
         if mask_0:
-            cdo.remapdis('r360x180', input='-timmean -setctomiss,0 ' + ifile_fp, output='remap_' + ifile, options='-L')
+            cdo.remapdis('r1440x720', input='-timmean -setctomiss,0 ' + ifile_fp, output='remap_new_' + ifile,
+                         options='-L')
         else:
-            cdo.remapdis('r360x180', input='-timmean ' + ifile_fp, output='remap_' + ifile, options='-L')
+            cdo.remapdis('r1440x720', input='-timmean ' + ifile_fp, output='remap_new_' + ifile, options='-L')
 
-    nc = Dataset('remap_' + ifile, 'r')
+    nc = Dataset('remap_new_' + ifile, 'r')
     ncvar = nc.variables[varname]
     data = ncvar[:].squeeze()
     masked_data = ma.masked_values(data, 0, atol=5e-8)
@@ -172,8 +150,8 @@ def load(ifile_fp, varname, mask_0=True):
     except:
         depth = 0
 
-    lon = np.linspace(0, 359, 360)
-    lat = np.linspace(-90, 90, 180)
+    lon = np.linspace(0, 359, 1440)
+    lat = np.linspace(-90, 90, 720)
     return masked_data, units, lon, lat, depth
 
 
@@ -248,8 +226,8 @@ def taylor_plot(data, obs, weights=None, ax_args=None):
 
 
 def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel='', depth='', anom=False):
-    """Pcolor a var in a global map, using ax if supplied"""
-    # setup a basic global map
+    """Pcolor a var in a polar map, using ax if supplied"""
+    # setup a basic polar map
 
     if not ax:
         _, ax = plt.subplots(1, 1, figsize=(8, 8))
@@ -261,7 +239,7 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
         if key not in pcolor_args or (pcolor_args[key] is None):
             pcolor_args[key] = value
 
-    m = Basemap(projection='npstere', boundinglat=45, lon_0=0, resolution='l', round=True, ax=ax)
+    m = Basemap(projection='npstere', boundinglat=55, lon_0=0, resolution='l', round=True, ax=ax)
 
     lons, lats = np.meshgrid(lon, lat)
     x, y = m(lons, lats)
@@ -274,9 +252,8 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
     ax.autoscale(enable=True, axis='both', tight=True)
     m.drawcoastlines(linewidth=1.25, ax=ax)
     m.fillcontinents(color='0.8', ax=ax, zorder=2)
-    # m.drawparallels(np.arange(-80, 81, 20), labels=[1, 0, 0, 0], linewidth=0, ax=ax)
-    #m.drawmeridians(np.arange(0,360,90),labels=[0,0,0,1],
-    #linewidth=0,yoffset=0.5e6, ax=ax)
+    m.drawparallels(np.arange(40, 80, 10))
+    m.drawmeridians(np.arange(0, 360, 30), labels=[1, 0, 0, 1], fontsize=8)
 
     m.colorbar(mappable=cot, location='right', label=cblabel)
     if anom:
