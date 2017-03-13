@@ -1,3 +1,4 @@
+# coding=utf-8
 """ NemoView: A Basic library for quick and dirty plots of NEMO results.
 
 version 0.1
@@ -120,39 +121,40 @@ def round_to_signif_figs(x, sigfigs):
 
 
 def load(ifile_fp, varname, mask_0=True):
-    """Time average ifile, interpolate to 1x1 degrees, and return var, lon, lat"""
+    """Time average ifile, interpolate to 1/2x1/2 degrees, and return var, lon, lat"""
 
     path, ifile = os.path.split(ifile_fp)
-    if not os.path.isfile('remap_new_' + ifile):
-        if mask_0:
-            cdo.remapdis('r1440x720', input='-timmean -setctomiss,0 ' + ifile_fp, output='remap_new_' + ifile,
-                         options='-L')
-        else:
-            cdo.remapdis('r1440x720', input='-timmean ' + ifile_fp, output='remap_new_' + ifile, options='-L')
+    cdo.remapdis('default_grid', input='-yearmean -sellonlatbox,-180,180,40,90 ' + ifile_fp, output='40up_' + ifile,
+                 options='-L', force=False)
+    # TODO: intlevel
 
-    nc = Dataset('remap_new_' + ifile, 'r')
+    nc = Dataset('40up_' + ifile, 'r')
     ncvar = nc.variables[varname]
     data = ncvar[:].squeeze()
-    masked_data = ma.masked_values(data, 0, atol=5e-8)
+    masked_data = ma.masked_values(data, 0, atol=5e-8)  # TODO: mesh_mask.nc, holes in phy
 
     try:
         units = ncvar.units
     except:
         units = ''
 
+    dimensions = ncvar.dimensions
+
     try:
-        for dimension in ncvar.dimensions:
+        for dimension in dimensions:
             if 'depth' in dimension.lower():
                 depth = nc.variables[dimension][:]
                 break
         else:
-            depth = 0
-    except:
-        depth = 0
+            raise IndexError
+    except IndexError:
+        print "Depth not given for " + varname + " in " + ifile + ", assuming 0."
+        depth = [0]
 
-    lon = np.linspace(0, 359, 1440)
-    lat = np.linspace(-90, 90, 720)
-    return masked_data, units, lon, lat, depth
+    lon = np.linspace(0, 360, 721)
+    lat = np.linspace(40, 90, 101)
+    print lat
+    return masked_data, units, lon, lat, depth, dimensions
 
 
 def corr(obs, data, weights=None):
@@ -243,19 +245,22 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
 
     lons, lats = np.meshgrid(lon, lat)
     x, y = m(lons, lats)
-
-    cot = m.pcolor(x, y, data, **pcolor_args)
+    graphed_data = m.pcolormesh(x, y, data, **pcolor_args)
 
     if ax_args:
         plt.setp(ax, **ax_args)
 
     ax.autoscale(enable=True, axis='both', tight=True)
-    m.drawcoastlines(linewidth=1.25, ax=ax)
-    m.fillcontinents(color='0.8', ax=ax, zorder=2)
-    m.drawparallels(np.arange(40, 80, 10))
+    m.drawcoastlines(linewidth=.25, ax=ax)  #1.25, ax=ax)
+    # m.fillcontinents(color='0.8', ax=ax, zorder=2)
+    m.drawparallels(np.arange(60, 80, 10))
     m.drawmeridians(np.arange(0, 360, 30), labels=[1, 0, 0, 1], fontsize=8)
+    x, y = m(90, 60)
+    plt.text(x+25000, y+30000, s=u"60°N", fontsize=8)
+    x, y = m(90, 70)
+    plt.text(x+25000, y+30000, s=u"70°N", fontsize=8)
 
-    m.colorbar(mappable=cot, location='right', label=cblabel)
+    m.colorbar(mappable=graphed_data, location='right', label=cblabel)
     if anom:
         vals = [data.min(), data.max(), np.sqrt(np.mean(data ** 2))]
         snam = ['min: ', 'max: ', '\nrmse: ']
@@ -402,7 +407,7 @@ def section_comparison(x, z, data1, data2, cblabel='', **kwargs):
     axm.set_xlabel('')
 
 
-def proc_plots(plots, obs4comp):
+def proc_plots(plots, obs4comp):  # TODO: 3 model view
     """Process a list of 'plots'
 
        Each 'plot' is a dict of key value pairs, defining:
@@ -441,7 +446,7 @@ def proc_plots(plots, obs4comp):
 
         # Loop over each variable in the plot, and save a plot for it.
         for x, v in enumerate(p['variables']):
-            data, units, lon, lat, depth = load(p['ifile'], v)
+            data, units, lon, lat, depth, dimensions = load(p['ifile'], v)
 
             if 'pcolor_args' not in p.keys():
                 p['pcolor_args'] = None
@@ -497,7 +502,12 @@ def proc_plots(plots, obs4comp):
                             p['plot_depth'] = np.round(depth[depth_ind])
                             print '...using ' + str(p['plot_depth']) + ' m \n'
 
-                        data = data[depth_ind, :, :]
+                        if u'time_counter' in dimensions:
+                            if len(dimensions) == 4:
+                                data = data[:, depth_ind, :, :]
+                        else:
+                            if len(dimensions) == 3:
+                                data = data[depth_ind, :, :]
 
                     except:
                         print('Failed to extract depth ' + p['plot_depth'] + ' for ' + v)
@@ -506,11 +516,20 @@ def proc_plots(plots, obs4comp):
                 if 'plot_depth' not in p.keys():
                     p['plot_depth'] = 0
 
-                npolar_map(lon, lat, data, ax_args=p['ax_args'], pcolor_args=p['pcolor_args'], cblabel=p['cblabel'],
-                           depth=str(p['plot_depth']))
-                plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map.pdf'
-                plots_out.append(plot_name)
-                plt.savefig(plot_name, bbox_inches='tight')
+                if len(data.shape) == 3:  # If there are multiple time steps,
+                    for i in range(0, data.shape[0]):  # Plot each one
+                        pcolor_args = default_pcolor_args(data)
+                        npolar_map(lon, lat, data[i, :, :], ax_args=p['ax_args'], pcolor_args=pcolor_args,
+                                   cblabel=p['cblabel'], depth=str(p['plot_depth']))
+                        plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_' + str(i) + '.pdf'
+                        plots_out.append(plot_name)
+                        plt.savefig(plot_name, bbox_inches='tight')
+                else:
+                    npolar_map(lon, lat, data, ax_args=p['ax_args'], pcolor_args=p['pcolor_args'],
+                               cblabel=p['cblabel'], depth=str(p['plot_depth']))
+                    plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_.pdf'
+                    plots_out.append(plot_name)
+                    plt.savefig(plot_name, bbox_inches='tight')
 
             if ((p['plot_type'] == 'npolar_map_comp') or (p['plot_type'] == 'section_comp') or
                     (p['plot_type'] == 'taylor_plot')):

@@ -28,7 +28,7 @@ parser.add_argument('infiles', nargs=1)
 args = parser.parse_args()
 
 ifile = args.infiles[0]
-ifile = 'CMOCNAA-EPM032_1460h_20020101_20030101_icemod.nc'
+ifile = 'NAA-EPM032_337h_20060101_20251231_ptrc_T.nc'
 
 if not os.path.exists(ifile):
     raise SystemExit('File not found:' + ifile)
@@ -51,7 +51,7 @@ obs4comp = {  # 'NO3': obs_root + 'uncs_orca2_data_data_n_an_nomask.nc',
     # 'EPC100': obs_root + 'mol-m2-s_AWI_export.nc',
     # 'salt': obs_root + 'phc3.0_monthly.nc',
     # 'temp': obs_root + 'phc3.0_monthly.nc',
-    'sosaline': 'CMOCNAA-EPM032_1460h_20020101_20030101_grid_T.nc',
+    'sosaline': 'NAA-EPM032_337h_20060101_20251231_grid_T.nc',
 }
 
 #===================================================================================
@@ -78,23 +78,23 @@ obs4comp = {  # 'NO3': obs_root + 'uncs_orca2_data_data_n_an_nomask.nc',
 #===================================================================================
 plots = [
     {'ifile': ifile,
-     'variables': ['iicethic'],
+     'variables': ['PHY'],
      'plot_depth': 0,
      'plot_type': 'npolar_map',
      },
+    # {'ifile': ifile,
+    #  'variables': ['isssalin'],
+    #  'compare_to': ['sosaline'],
+    #  'plot_depth': 0,
+    #  'plot_type': 'npolar_map_comp',
+    #  },
+    # {'ifile': ifile,
+    #  'variables': ['isssalin'],
+    #  'compare_to': ['sosaline'],
+    #  'plot_depth': 0,
+    #  'plot_type': 'taylor_plot',
+    #  },
 
-    {'ifile': ifile,
-     'variables': ['isssalin'],
-     'compare_to': ['sosaline'],
-     'plot_depth': 0,
-     'plot_type': 'npolar_map_comp',
-     },
-    {'ifile': ifile,
-     'variables': ['isssalin'],
-     'compare_to': ['sosaline'],
-     'plot_depth': 0,
-     'plot_type': 'taylor_plot',
-     },
     # {'ifile': ifile_ptrc,
     #  'variables': ['NO3', 'O2'],
     #  'plot_type': 'global_map_comp',
