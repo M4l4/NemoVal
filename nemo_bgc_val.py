@@ -79,7 +79,7 @@ obs4comp = {  # 'NO3': obs_root + 'uncs_orca2_data_data_n_an_nomask.nc',
 plots = [
     {'ifile': ifile,
      'variables': ['PHY'],
-     'plot_depth': 0,
+     'plot_depth': 10,
      'plot_type': 'npolar_map',
      },
     # {'ifile': ifile,

@@ -120,22 +120,27 @@ def round_to_signif_figs(x, sigfigs):
     return xsgn * np.around(mantissas, decimals=sigfigs - 1) * 10.0 ** omags
 
 
-def load(ifile_fp, varname, mask_0=True):
+def load(ifile_fp, varname):
     """Time average ifile, interpolate to 1/2x1/2 degrees, and return var, lon, lat"""
 
     path, ifile = os.path.split(ifile_fp)
-    cdo.remapdis('default_grid', input='-yearmean -sellonlatbox,-180,180,40,90 ' + ifile_fp, output='40up_' + ifile,
-                 options='-L', force=False)
-    # TODO: intlevel
 
-    nc = Dataset('40up_' + ifile, 'r')
+    with open('default_depths') as f:
+        default_depths = f.read().replace('\n', ',')
+
+    cdo.intlevel(default_depths, input='-remapdis,default_grid -yearmean -sellonlatbox,-180,180,40,90 ' + ifile_fp,
+                 output='intlev_' + ifile, options='-L', force=False)
+    # TODO: intlevel extrapolate?
+
+    nc = Dataset('intlev_' + ifile, 'r')
     ncvar = nc.variables[varname]
     data = ncvar[:].squeeze()
     masked_data = ma.masked_values(data, 0, atol=5e-8)  # TODO: mesh_mask.nc, holes in phy
 
     try:
         units = ncvar.units
-    except:
+    except AttributeError:
+        print 'Units not set, leaving empty.'
         units = ''
 
     dimensions = ncvar.dimensions
@@ -153,7 +158,7 @@ def load(ifile_fp, varname, mask_0=True):
 
     lon = np.linspace(0, 360, 721)
     lat = np.linspace(40, 90, 101)
-    print lat
+
     return masked_data, units, lon, lat, depth, dimensions
 
 
@@ -237,9 +242,9 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
     if not pcolor_args:
         pcolor_args = default_pcolor_args(data, anom=anom)
 
-    for key, value in default_pcolor_args(data, anom=anom).iteritems():
-        if key not in pcolor_args or (pcolor_args[key] is None):
-            pcolor_args[key] = value
+    # for key, value in default_pcolor_args(data, anom=anom).iteritems():
+    #     if key not in pcolor_args or (pcolor_args[key] is None):
+    #         pcolor_args[key] = value
 
     m = Basemap(projection='npstere', boundinglat=55, lon_0=0, resolution='l', round=True, ax=ax)
 
@@ -275,7 +280,7 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
         ax.text(.7, 0, 'Depth: ' + depth + ' m', fontsize=8, transform=ax.transAxes)
 
 
-def map_comparison(lon, lat, data1, data2, cblabel='', level='', **kwargs_in):
+def map_comparison(lon, lat, data1, data2, cblabel='', depth='', **kwargs_in):
     kwargs = copy.deepcopy(kwargs_in)
 
     # Three panels to plots the obs, data and anomaly
@@ -313,98 +318,13 @@ def map_comparison(lon, lat, data1, data2, cblabel='', level='', **kwargs_in):
         kwargs['data2_args']['pcolor_args'] = d1pca
 
     npolar_map(lon, lat, data1, ax=axl, ax_args=kwargs['data1_args']['ax_args'],
-               pcolor_args=kwargs['data1_args']['pcolor_args'], cblabel=cblabel, depth=level)
+               pcolor_args=kwargs['data1_args']['pcolor_args'], cblabel=cblabel, depth=depth)
 
     npolar_map(lon, lat, data2, ax=axm, ax_args=kwargs['data2_args']['ax_args'],
-               pcolor_args=kwargs['data2_args']['pcolor_args'], cblabel=cblabel, depth=level)
+               pcolor_args=kwargs['data2_args']['pcolor_args'], cblabel=cblabel, depth=depth)
 
     npolar_map(lon, lat, anom, ax=axr, ax_args=kwargs['anom_args']['ax_args'],
-               pcolor_args=kwargs['anom_args']['pcolor_args'], cblabel=cblabel, depth=level, anom=True)
-
-
-def section(x, z, data, ax=None, ax_args=None, pcolor_args=None, cblabel='', contour=True, anom=False):
-    if not ax:
-        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-        fig.subplots_adjust(top=0.8, right=0.8)
-    else:
-        fig = plt.gcf()
-
-    if not pcolor_args:
-        pcolor_args = default_pcolor_args(data, anom=anom)
-    for key, value in default_pcolor_args(data, anom=anom).iteritems():
-        if key not in pcolor_args or (pcolor_args[key] is None):
-            pcolor_args[key] = value
-
-    cot = ax.pcolormesh(x, z, data, **pcolor_args)
-
-    if contour:
-        ax.contour(x, z, data, colors=['k'], vmin=pcolor_args['vmin'], vmax=pcolor_args['vmax'])
-    ax.invert_yaxis()
-    ax.autoscale(True, axis='both', tight='both')
-    if ax_args:
-        plt.setp(ax, **ax_args)
-
-    if anom:
-        vals = [data.min(), data.max(), np.sqrt(np.mean(data ** 2))]
-        snam = ['min: ', 'max: ', 'rmse: ']
-    else:
-        vals = [data.min(), data.max(), data.mean()]
-        snam = ['min: ', 'max: ', 'mean: ']
-
-    vals = [s + str(round_to_signif_figs(va, 2)) for s, va in zip(snam, vals)]
-    ylims = ax.get_ylim()
-    dy = max(ylims) - min(ylims)
-    ypos = max(ylims) - 0.05 * dy
-    xlims = ax.get_xlim()
-    dx = max(xlims) - min(xlims)
-    xpos = min(xlims) + 0.05 * dx
-
-    ax.text(xpos, ypos, '  '.join(vals), fontsize=8, bbox=dict(facecolor='white', alpha=0.75))
-
-    box = ax.get_position()
-    tl = fig.add_axes([box.x1 + box.width * 0.05, box.y0, 0.02, box.height])
-    fig.colorbar(cot, cax=tl, label=cblabel)
-
-
-def section_comparison(x, z, data1, data2, cblabel='', **kwargs):
-    # Three panels to plots the obs, data and anomaly
-    fig, (axl, axm, axr) = plt.subplots(3, 1, figsize=(8, 8), sharex=True, sharey=True)
-
-    fig.subplots_adjust(right=0.6)
-
-    # compute the anomaly
-    if data1.shape != data2.shape:
-        raise ValueError('data1.shape != data2.shape, cannot make anomaly')
-    else:
-        anom = data2 - data1
-
-    # Check for pcolor and ax args. Assign default pcolor args for anomaly if
-    # none have been provided, and for all others set to empty dict.
-    for dargs in ['data1_args', 'data2_args', 'anom_args']:
-        if dargs not in kwargs.keys():
-            kwargs[dargs] = {}
-        if 'pcolor_args' not in kwargs[dargs].keys():
-            kwargs[dargs]['pcolor_args'] = {}
-        if 'ax_args' not in kwargs[dargs].keys():
-            kwargs[dargs]['ax_args'] = {}
-
-    section(x, z, data1, ax=axl,
-            pcolor_args=kwargs['data1_args']['pcolor_args'],
-            ax_args=kwargs['data1_args']['ax_args'],
-            cblabel=cblabel)
-
-    section(x, z, data2, ax=axm,
-            pcolor_args=kwargs['data2_args']['pcolor_args'],
-            ax_args=kwargs['data2_args']['ax_args'],
-            cblabel=cblabel)
-
-    section(x, z, anom, ax=axr,
-            pcolor_args=kwargs['anom_args']['pcolor_args'],
-            ax_args=kwargs['anom_args']['ax_args'],
-            cblabel=cblabel, anom=True)
-
-    axl.set_xlabel('')
-    axm.set_xlabel('')
+               pcolor_args=kwargs['anom_args']['pcolor_args'], cblabel=cblabel, depth=depth, anom=True)
 
 
 def proc_plots(plots, obs4comp):  # TODO: 3 model view
@@ -430,7 +350,7 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
     os.mkdir('./plots')
 
     for p in plots:
-        if (p['plot_type'] == 'npolar_map_comp') or (p['plot_type'] == 'section_comp'):
+        if p['plot_type'] == 'npolar_map_comp':
             for dargs in ['data1_args', 'data2_args', 'anom_args']:
                 if 'kwargs' not in p.keys():
                     p['kwargs'] = {}
@@ -438,11 +358,6 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                     p['kwargs'][dargs] = {}
                 if 'ax_args' not in p['kwargs'][dargs]:
                     p['kwargs'][dargs]['ax_args'] = {}
-
-                if p['plot_type'] == 'section_comp':
-                    p['kwargs'][dargs]['ax_args']['xlabel'] = 'Latitude'
-                    p['kwargs'][dargs]['ax_args']['xticks'] = np.arange(-80, 81, 20)
-                    p['kwargs'][dargs]['ax_args']['ylabel'] = 'Depth'
 
         # Loop over each variable in the plot, and save a plot for it.
         for x, v in enumerate(p['variables']):
@@ -458,28 +373,6 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                 p['ax_args'] = {'title': v}
             else:
                 p['ax_args']['title'] = v
-
-            if p['plot_type'] == 'section':
-                print 'plotting section of ' + v
-
-                p['ax_args']['xlabel'] = 'Latitude'
-                p['ax_args']['xticks'] = np.arange(-80, 81, 20)
-                p['ax_args']['ylabel'] = 'Depth'
-
-                if data.ndim == 3:
-                    zonmean = data.mean(axis=2)
-                elif data.ndim == 2:
-                    zonmean = data.mean(axis=1)
-                else:
-                    print 'proc_plot cannot zonal mean dfor section '  # + ifile + ' ' + v
-                    raise ValueError
-
-                section(lat, depth, zonmean, ax_args=p['ax_args'],
-                        pcolor_args=p['pcolor_args'], cblabel=p['cblabel'])
-
-                plot_name = 'plots/' + v + '_section.pdf'
-                plt.savefig(plot_name, bbox_inches='tight')
-                plots_out.append(plot_name)
 
             if p['plot_type'] == 'npolar_map':
                 print 'plotting npolar map of ' + v
@@ -522,8 +415,10 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                         npolar_map(lon, lat, data[i, :, :], ax_args=p['ax_args'], pcolor_args=pcolor_args,
                                    cblabel=p['cblabel'], depth=str(p['plot_depth']))
                         plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_' + str(i) + '.pdf'
+
                         plots_out.append(plot_name)
                         plt.savefig(plot_name, bbox_inches='tight')
+
                 else:
                     npolar_map(lon, lat, data, ax_args=p['ax_args'], pcolor_args=p['pcolor_args'],
                                cblabel=p['cblabel'], depth=str(p['plot_depth']))
@@ -531,15 +426,14 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                     plots_out.append(plot_name)
                     plt.savefig(plot_name, bbox_inches='tight')
 
-            if ((p['plot_type'] == 'npolar_map_comp') or (p['plot_type'] == 'section_comp') or
-                    (p['plot_type'] == 'taylor_plot')):
+            if (p['plot_type'] == 'npolar_map_comp') or (p['plot_type'] == 'taylor_plot'):
                 try:
                     comp_var = p['compare_to'][x]
                 except IndexError:
                     print 'No comparison variable provided for ' + v
                     raise
                 try:
-                    obs_data, _, _, _, obs_depth = load(obs4comp[comp_var], comp_var, mask_0=False)
+                    obs_data, _, _, _, obs_depth, dimensions = load(obs4comp[comp_var], comp_var)
                 except ValueError:
                     print(v + ' not provided on obs4comp dict, cannot compare')
                     raise
@@ -584,37 +478,14 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
 
                 if obs_data.ndim == 3:
                     try:
-                        ind_obs = np.where(
-                            np.round(obs_depth) == p['plot_depth'])[0][0]
+                        ind_obs = np.where(np.round(obs_depth) == p['plot_depth'])[0][0]
                         obs_data = obs_data[ind_obs, :, :]
                     except:
                         print('Failed to extract depth ' + str(p['plot_depth']) + ' for observed ' + v)
                         raise
 
-                map_comparison(lon, lat, obs_data, data, cblabel=p['cblabel'],
-                               level=str(p['plot_depth']), **p['kwargs'])
+                map_comparison(lon, lat, obs_data, data, cblabel=p['cblabel'], depth=str(p['plot_depth']))
                 plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map-comp.pdf'
-                plots_out.append(plot_name)
-                plt.savefig(plot_name, bbox_inches='tight')
-
-            if p['plot_type'] == 'section_comp':
-                print('plotting latitudinal section comparison of ' + v + ' with obs')
-
-                if data.ndim > 2:
-                    data = data.mean(axis=2)
-
-                if obs_data.ndim > 2:
-                    obs_data = obs_data.mean(axis=2)
-
-                section_comparison(lat, depth, obs_data, data,
-                                   cblabel=p['cblabel'], **p['kwargs'])
-                plot_name = 'plots/' + v + '_section-comp.pdf'
-                plots_out.append(plot_name)
-                plt.savefig(plot_name, bbox_inches='tight')
-
-            if p['plot_type'] == 'taylor_plot':
-                taylor_plot(data, obs_data, ax_args=p['ax_args'])
-                plot_name = 'plots/' + v + '_taylor.pdf'
                 plots_out.append(plot_name)
                 plt.savefig(plot_name, bbox_inches='tight')
 
@@ -629,10 +500,9 @@ if __name__ == '__main__':
     ifile_y0001 = ('/raid/ra40/data/ncs/nemo_out/nue/' +
                    'mc_nue_1m_00010101_00011231_ptrc_t.nc.001')
 
-    no3_y2000, _, longitude, latitude, depths = load(ifile_y2000, 'NO3')
-    no3_y0001, _, longitude, latitude, depths = load(ifile_y0001, 'NO3')
+    no3_y2000, _, longitude, latitude, depths, dims = load(ifile_y2000, 'NO3')
+    no3_y0001, _, longitude, latitude, depths, dims = load(ifile_y0001, 'NO3')
 
-    map_comparison(longitude, latitude, no3_y0001[0, :, :], no3_y2000[0, :, :],
-                   cblabel=r'$\mu$mol l$^{-1}$')
+    map_comparison(longitude, latitude, no3_y0001[0, :, :], no3_y2000[0, :, :], cblabel=r'$\mu$mol l$^{-1}$')
 
     plt.show()
