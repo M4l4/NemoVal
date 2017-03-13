@@ -59,20 +59,6 @@ def default_pcolor_args(data, anom=False):
     return d
 
 
-def lon_lat_to_cartesian(lon, lat, r=1):
-    """
-    calculates lon, lat coordinates of a point on a sphere with
-    radius r
-    """
-    lon_r = np.radians(lon)
-    lat_r = np.radians(lat)
-
-    x = r * np.cos(lat_r) * np.cos(lon_r)
-    y = r * np.cos(lat_r) * np.sin(lon_r)
-    z = r * np.sin(lat_r)
-    return x, y, z
-
-
 def round_to_signif_figs(x, sigfigs):
     """
     Rounds the value(s) in x to the number of significant figures in sigfigs.
@@ -129,7 +115,7 @@ def load(ifile_fp, varname):
         default_depths = f.read().replace('\n', ',')
 
     cdo.intlevel(default_depths, input='-remapdis,default_grid -yearmean -sellonlatbox,-180,180,40,90 ' + ifile_fp,
-                 output='intlev_' + ifile, options='-L', force=False)
+                 output='intlev_' + ifile, options='-a -L', force=False)
     # TODO: intlevel extrapolate?
 
     nc = Dataset('intlev_' + ifile, 'r')
@@ -153,13 +139,15 @@ def load(ifile_fp, varname):
         else:
             raise IndexError
     except IndexError:
-        print "Depth not given for " + varname + " in " + ifile + ", assuming 0."
-        depth = [0]
+        print "Depth not given for " + varname + " in " + ifile + ", assuming 3m."
+        depth = [3]
 
     lon = np.linspace(0, 360, 721)
     lat = np.linspace(40, 90, 101)
 
-    return masked_data, units, lon, lat, depth, dimensions
+    years = str(cdo.showyear(input=ifile)[0]).split(' ')
+
+    return masked_data, units, lon, lat, depth, dimensions, years
 
 
 def corr(obs, data, weights=None):
@@ -236,6 +224,9 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
     """Pcolor a var in a polar map, using ax if supplied"""
     # setup a basic polar map
 
+    if data.max() is ma.masked:
+        raise ValueError
+
     if not ax:
         _, ax = plt.subplots(1, 1, figsize=(8, 8))
 
@@ -277,7 +268,7 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
     ax.text(0, 0, '  '.join(vals), fontsize=8, transform=ax.transAxes)
 
     if depth:
-        ax.text(.7, 0, 'Depth: ' + depth + ' m', fontsize=8, transform=ax.transAxes)
+        ax.text(.7, 0, 'Depth: {}m'.format(depth), fontsize=8, transform=ax.transAxes)
 
 
 def map_comparison(lon, lat, data1, data2, cblabel='', depth='', **kwargs_in):
@@ -308,8 +299,8 @@ def map_comparison(lon, lat, data1, data2, cblabel='', depth='', **kwargs_in):
         d1pca = default_pcolor_args(data1)
         d2pca = default_pcolor_args(data2)
 
-        vmin = np.min([d1pca['vmin'], d2pca['vmin']])
-        vmax = np.max([d1pca['vmax'], d2pca['vmax']])
+        vmin = min([d1pca['vmin'], d2pca['vmin']])
+        vmax = max([d1pca['vmax'], d2pca['vmax']])
 
         d1pca['vmin'] = vmin
         d1pca['vmax'] = vmax
@@ -317,14 +308,17 @@ def map_comparison(lon, lat, data1, data2, cblabel='', depth='', **kwargs_in):
         kwargs['data1_args']['pcolor_args'] = d1pca
         kwargs['data2_args']['pcolor_args'] = d1pca
 
-    npolar_map(lon, lat, data1, ax=axl, ax_args=kwargs['data1_args']['ax_args'],
-               pcolor_args=kwargs['data1_args']['pcolor_args'], cblabel=cblabel, depth=depth)
+    try:
+        npolar_map(lon, lat, data1, ax=axl, ax_args=kwargs['data1_args']['ax_args'],
+                   pcolor_args=kwargs['data1_args']['pcolor_args'], cblabel=cblabel, depth=depth)
 
-    npolar_map(lon, lat, data2, ax=axm, ax_args=kwargs['data2_args']['ax_args'],
-               pcolor_args=kwargs['data2_args']['pcolor_args'], cblabel=cblabel, depth=depth)
+        npolar_map(lon, lat, data2, ax=axm, ax_args=kwargs['data2_args']['ax_args'],
+                   pcolor_args=kwargs['data2_args']['pcolor_args'], cblabel=cblabel, depth=depth)
 
-    npolar_map(lon, lat, anom, ax=axr, ax_args=kwargs['anom_args']['ax_args'],
-               pcolor_args=kwargs['anom_args']['pcolor_args'], cblabel=cblabel, depth=depth, anom=True)
+        npolar_map(lon, lat, anom, ax=axr, ax_args=kwargs['anom_args']['ax_args'],
+                   pcolor_args=kwargs['anom_args']['pcolor_args'], cblabel=cblabel, depth=depth, anom=True)
+    except ValueError:
+        raise
 
 
 def proc_plots(plots, obs4comp):  # TODO: 3 model view
@@ -361,7 +355,7 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
 
         # Loop over each variable in the plot, and save a plot for it.
         for x, v in enumerate(p['variables']):
-            data, units, lon, lat, depth, dimensions = load(p['ifile'], v)
+            data, units, lon, lat, depth, dimensions, years = load(p['ifile'], v)
 
             if 'pcolor_args' not in p.keys():
                 p['pcolor_args'] = None
@@ -412,19 +406,25 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                 if len(data.shape) == 3:  # If there are multiple time steps,
                     for i in range(0, data.shape[0]):  # Plot each one
                         pcolor_args = default_pcolor_args(data)
-                        npolar_map(lon, lat, data[i, :, :], ax_args=p['ax_args'], pcolor_args=pcolor_args,
-                                   cblabel=p['cblabel'], depth=str(p['plot_depth']))
-                        plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_' + str(i) + '.pdf'
+                        try:
+                            npolar_map(lon, lat, data[i, :, :], ax_args=p['ax_args'], pcolor_args=pcolor_args,
+                                       cblabel=p['cblabel'], depth=str(p['plot_depth']))
+                            plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_' + str(i+1) + '.pdf'
 
-                        plots_out.append(plot_name)
-                        plt.savefig(plot_name, bbox_inches='tight')
+                            plots_out.append(plot_name)
+                            plt.savefig(plot_name, bbox_inches='tight')
+                        except ValueError:
+                            print 'Graph number {} of {} has no data, skipping...'.format(i+1, v)
 
                 else:
-                    npolar_map(lon, lat, data, ax_args=p['ax_args'], pcolor_args=p['pcolor_args'],
-                               cblabel=p['cblabel'], depth=str(p['plot_depth']))
-                    plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_.pdf'
-                    plots_out.append(plot_name)
-                    plt.savefig(plot_name, bbox_inches='tight')
+                    try:
+                        npolar_map(lon, lat, data, ax_args=p['ax_args'], pcolor_args=p['pcolor_args'],
+                                   cblabel=p['cblabel'], depth=str(p['plot_depth']))
+                        plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map_.pdf'
+                        plots_out.append(plot_name)
+                        plt.savefig(plot_name, bbox_inches='tight')
+                    except ValueError:
+                        print 'The graph {} has no data, skipping...'.format(v)
 
             if (p['plot_type'] == 'npolar_map_comp') or (p['plot_type'] == 'taylor_plot'):
                 try:
@@ -433,7 +433,7 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                     print 'No comparison variable provided for ' + v
                     raise
                 try:
-                    obs_data, _, _, _, obs_depth, dimensions = load(obs4comp[comp_var], comp_var)
+                    obs_data, _, _, _, obs_depth, dimensions, years = load(obs4comp[comp_var], comp_var)
                 except ValueError:
                     print(v + ' not provided on obs4comp dict, cannot compare')
                     raise
@@ -446,52 +446,64 @@ def proc_plots(plots, obs4comp):  # TODO: 3 model view
                 else:
                     p['ax_args']['title'] = v
 
-            if p['plot_type'] == 'npolar_map_comp':
-                print('plotting north polar map comparison of ' + v + ' with obs')
+                if p['plot_type'] == 'npolar_map_comp':
+                    print('plotting north polar map comparison of ' + v + ' with obs')
 
-                if data.ndim > 2:
-                    if 'plot_depth' not in p.keys():
-                        p['plot_depth'] = np.round(depth.min())
-                        print('global_map: plot_depth not specified for ' +
-                              v + ', using ' + str(p['plot_depth']))
-                    else:
-                        p['plot_depth'] = np.round(p['plot_depth'])
-
-                    try:
-                        if p['plot_depth'] in np.round(depth):
-                            depth_ind = np.where(np.round(depth) == p['plot_depth'])[0][0]
+                    if data.ndim > 2:
+                        if 'plot_depth' not in p.keys():
+                            p['plot_depth'] = np.round(depth.min())
+                            print('global_map: plot_depth not specified for ' +
+                                  v + ', using ' + str(p['plot_depth']))
                         else:
-                            print 'Specified "plot_depth" of ' + str(p['plot_depth']) + ' m not a depth in the NEMO ' \
-                                                                                        'file...looking for closest ' \
-                                                                                        'match instead...'
-                            anom = np.round(depth) - p['plot_depth']
-                            depth_ind = np.where(abs(anom) == abs(anom).min())[0][0]
-                            p['plot_depth'] = np.round(depth[depth_ind])
+                            p['plot_depth'] = np.round(p['plot_depth'])
 
-                        data = data[depth_ind, :, :]
-                    except:
-                        print('Failed to extract depth ' + str(p['plot_depth']) + ' for ' + v)
-                        raise
+                        try:
+                            if p['plot_depth'] in np.round(depth):
+                                depth_ind = np.where(np.round(depth) == p['plot_depth'])[0][0]
+                            else:
+                                print 'Specified "plot_depth" of ' + str(p['plot_depth']) + ' m not a depth in the NEMO ' \
+                                                                                            'file...looking for closest ' \
+                                                                                            'match instead...'
+                                anom = np.round(depth) - p['plot_depth']
+                                depth_ind = np.where(abs(anom) == abs(anom).min())[0][0]
+                                p['plot_depth'] = np.round(depth[depth_ind])
 
-                elif 'plot_depth' not in p.keys():
-                    p['plot_depth'] = 0
+                            data = data[depth_ind, :, :]
+                        except:
+                            print('Failed to extract depth ' + str(p['plot_depth']) + ' for ' + v)
+                            raise
 
-                if obs_data.ndim == 3:
+                    elif 'plot_depth' not in p.keys():
+                        p['plot_depth'] = 0
+
+                    if obs_data.ndim == 3:
+                        try:
+                            ind_obs = np.where(np.round(obs_depth) == p['plot_depth'])[0][0]
+                            obs_data = obs_data[ind_obs, :, :]
+                        except:
+                            print('Failed to extract depth ' + str(p['plot_depth']) + ' for observed ' + v)
+                            raise
+
                     try:
-                        ind_obs = np.where(np.round(obs_depth) == p['plot_depth'])[0][0]
-                        obs_data = obs_data[ind_obs, :, :]
-                    except:
-                        print('Failed to extract depth ' + str(p['plot_depth']) + ' for observed ' + v)
-                        raise
+                        map_comparison(lon, lat, obs_data, data, cblabel=p['cblabel'], depth=str(p['plot_depth']))
+                        plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map-comp.pdf'
+                        plots_out.append(plot_name)
+                        plt.savefig(plot_name, bbox_inches='tight')
+                    except ValueError:
+                        print 'The comparison of {} has no data in one o, skipping...'.format(v)
 
-                map_comparison(lon, lat, obs_data, data, cblabel=p['cblabel'], depth=str(p['plot_depth']))
-                plot_name = 'plots/' + v + '_' + str(p['plot_depth']) + '_map-comp.pdf'
-                plots_out.append(plot_name)
-                plt.savefig(plot_name, bbox_inches='tight')
+                if p['plot_type'] == 'taylor_plot':
+                    taylor_plot(data, obs_data, ax_args=p['ax_args'])
+                    plot_name = 'plots/' + v + '_taylor.pdf'
+                    plots_out.append(plot_name)
+                    plt.savefig(plot_name, bbox_inches='tight')
 
                 # END of plot loop
 
-    subprocess.Popen(('pdfunite ' + ' '.join(plots_out) + ' plots/NemoView_plots.pdf'), shell=True).wait()
+    if len(plots_out):
+        subprocess.Popen(('pdfunite ' + ' '.join(plots_out) + ' plots/NemoView_plots.pdf'), shell=True).wait()
+    else:
+        print '\nNo plots were generated.'
 
 
 if __name__ == '__main__':
@@ -500,8 +512,8 @@ if __name__ == '__main__':
     ifile_y0001 = ('/raid/ra40/data/ncs/nemo_out/nue/' +
                    'mc_nue_1m_00010101_00011231_ptrc_t.nc.001')
 
-    no3_y2000, _, longitude, latitude, depths, dims = load(ifile_y2000, 'NO3')
-    no3_y0001, _, longitude, latitude, depths, dims = load(ifile_y0001, 'NO3')
+    no3_y2000, _, longitude, latitude, depths, _, _ = load(ifile_y2000, 'NO3')
+    no3_y0001, _, longitude, latitude, depths, _, _ = load(ifile_y0001, 'NO3')
 
     map_comparison(longitude, latitude, no3_y0001[0, :, :], no3_y2000[0, :, :], cblabel=r'$\mu$mol l$^{-1}$')
 
