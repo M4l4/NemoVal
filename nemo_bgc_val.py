@@ -20,7 +20,7 @@ neil.swart@canada.ca, 10/2015
 import argparse
 import os
 
-import nemo_plot_tools as npt
+import plot_tools as npt
 
 # Get input files from the command line:
 parser = argparse.ArgumentParser(prog='nemo_bgc_val.py', usage='%(prog)s [options]')
@@ -77,23 +77,23 @@ obs4comp = {  # 'NO3': obs_root + 'uncs_orca2_data_data_n_an_nomask.nc',
 #                   'data2_args', 'anom_args'.
 #===================================================================================
 plots = [
-    {'ifile': ifile,
-     'variables': ['PHY'],
-     'plot_depth': 10,
-     'plot_type': 'npolar_map',
-     },
+    # {'ifile': ifile,
+    #  'variables': ['PHY'],
+    #  'plot_depth': 10,
+    #  'plot_type': 'npolar_map',
+    #  },
     # {'ifile': ifile,
     #  'variables': ['isssalin'],
     #  'compare_to': ['sosaline'],
     #  'plot_depth': 0,
     #  'plot_type': 'npolar_map_comp',
     #  },
-    # {'ifile': ifile,
-    #  'variables': ['isssalin'],
-    #  'compare_to': ['sosaline'],
-    #  'plot_depth': 0,
-    #  'plot_type': 'taylor_plot',
-    #  },
+    {'ifile': ifile,
+     'variables': ['isssalin'],
+     'compare_to': ['sosaline'],
+     'plot_depth': 0,
+     'plot_type': 'taylor_plot',
+     },
 
     # {'ifile': ifile_ptrc,
     #  'variables': ['NO3', 'O2'],

@@ -189,14 +189,6 @@ def genweights(gridfile):
     return weights2d, weights3d
 
 
-#def driver(varlist, ifilelist, obs4comp):
-#"""Calls taylor_plot for each variable in varlist,
-#and for each variable plots a point for obs in
-#obs4comp and model in ifilelist
-#"""
-#for var in varlist:
-#obs = load(obs4comp[var], var)
-
 gridfile = '/home/ncs/ra40/nemo_out/nemo_3.4_orca2_mesh_mask.nc'
 weights2d, weights3d = genweights(gridfile)
 
