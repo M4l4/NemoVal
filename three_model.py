@@ -5,7 +5,7 @@ import os
 import shutil
 import re
 
-canoe_file = 'models/CanOE2_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'   # Relative path to input files
+canoe_file = 'models/CanOE2_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'   # Relative or absolute path to input files
 pisces_file = 'models/PISCES_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'
 cmoc_file = 'models/CMOC_NAA-EPM032_365h_19840101_19931231_ptrc_T.nc'
 canoe_vars = ['no3']                                                # Names of the variables to compare
@@ -167,7 +167,8 @@ for i in range(0, len(canoe_vars)):
     else:
         raise ValueError('Malformed input data, CMOC')
 
-    anom_data = anom_data[depth_index, :, :]
+    if anomaly:
+        anom_data = anom_data[depth_index, :, :]
 
     print 'Plotting graph of {}...'.format(canoe_vars[i])
     year_list = list(set(years1).intersection(years2, years3))  # Find the years common to all data sets,
@@ -259,7 +260,7 @@ for i in range(0, len(canoe_vars)):
                                   plot_depth, True)
 
             if len(year_list) > 1:
-                plot_name = 'plots/{}_{:.2f}_map_{}.pdf'.format(canoe_vars[i], plot_depth, j + 1)
+                plot_name = 'plots/{}_{:.2f}_map_{}.pdf'.format(canoe_vars[i], plot_depth, year_list[j])
             else:
                 plot_name = 'plots/{}_{:.2f}_map.pdf'.format(canoe_vars[i], plot_depth)
             plt.savefig(plot_name, bbox_inches='tight')
