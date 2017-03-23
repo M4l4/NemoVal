@@ -8,16 +8,16 @@ import re
 canoe_file = 'models/CanOE2_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'   # Relative or absolute path to input files
 pisces_file = 'models/PISCES_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'
 cmoc_file = 'models/CMOC_NAA-EPM032_365h_19840101_19931231_ptrc_T.nc'
-canoe_vars = ['no3']                                                # Names of the variables to compare
-pisces_cmoc_vars = ['no3']                                          # PISCES and CMOC should be the same....
+canoe_vars = ['dic']                                                # Names of the variables to compare
+pisces_cmoc_vars = ['dic']                                          # PISCES and CMOC should be the same....
 
 depth = 10                                                          # Target depth in metres to plot
 
 upper_colour_bar = []                                               # If you want to control the scale of the colour bar
 lower_colour_bar = []                                               # enter a number here. To auto config, leave as []
 
-anomaly = False                                                      # Set to True to get a 2x3 plot with anomalies
-anom_vars = ['no3']                                                 # Variable name to compare to, must be in OBS
+anomaly = True                                                      # Set to True to get a 2x3 plot with anomalies
+anom_vars = ['DIC']                                                 # Variable name to compare to, must be in OBS
 anom_upper_colour_bar = []                                          # Set the scale of the colour bar of the anomalies
 anom_lower_colour_bar = []
 
@@ -84,7 +84,12 @@ PISCES_CMOC_SCALE_FACTORS = {
 }
 
 OBS = {  # Dictionary relating the names of observation data to the files they come from
-    # 'no3': 'artic_obs/CMOCNAA-EPM032_1460h_20020101_20030101_ptrc_T.nc'
+    'NO3': 'arctic_obs/OA2013_2x2_ORCA1_zlevels_clean.nc',
+    'O2': 'arctic_obs/OA2013_2x2_ORCA1_zlevels_clean.nc',
+    'TAlk': 'arctic_obs/GLODAP_1_2_merged_2x2_ORCA1_zlevels_clean.nc',
+    'DIC': 'arctic_obs/GLODAP_1_2_merged_2x2_ORCA1_zlevels_clean.nc',
+    # 'salt': 'arctic_obs/OA2013_2x2_ORCA1_zlevels_clean.nc',
+    # 'temp': 'arctic_obs/OA2013_2x2_ORCA1_zlevels_clean.nc',
 }
 
 if os.path.isdir('./plots'):
@@ -108,7 +113,11 @@ for i in range(0, len(canoe_vars)):
     data3 = data3 * PISCES_CMOC_SCALE_FACTORS[pisces_cmoc_vars[i]]
 
     if anomaly:  # Load observation data
-        anom_data, _, _, _, _, _, _ = pt.load(OBS[anom_vars[i]], anom_vars[i])
+        try:
+            anom_data, _, _, _, _, _, _ = pt.load(OBS[anom_vars[i]], anom_vars[i])
+        except KeyError:
+            print 'Anomaly variable used must be in the obs dictionary, \'{}\' is not.'.format(anom_vars[i])
+            continue
         if anom_data.shape == 4:
             anom_data = anom_data[0, depth_index, :, :]
         anom_data = anom_data * PISCES_CMOC_SCALE_FACTORS[pisces_cmoc_vars[i]]

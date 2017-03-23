@@ -71,7 +71,7 @@ def load(ifile_fp, varname):
             print 'CDO must be installed to preproces files.'
             raise
 
-        print 'Preprocessing', ifile
+        print 'preprocessing', ifile
 
         with open('parameters/default_depths') as f:
             default_depths = f.read().replace('\n', ',')
@@ -97,8 +97,7 @@ def load(ifile_fp, varname):
         except (AttributeError, IndexError):
             print 'Data from {} is not on the NAA grid, no land mask applied.'.format(ifile)
             # Year average ifile, and interpolate to 1/2x1/2 degrees
-            cdo.intlevel(default_depths,
-                         input='-remapdis,parameters/default_grid -yearmean -sellonlatbox,-180,180,40,90 ' + ifile_fp,
+            cdo.intlevel(default_depths, input='-remapdis,parameters/default_grid -yearmean ' + ifile_fp,
                          output='remapped/intlev_' + ifile, options='-L', force=False)
         print ifile, 'preprocessed.'
 
@@ -106,7 +105,6 @@ def load(ifile_fp, varname):
     nc = Dataset(remaped_file, 'r')
     ncvar = nc.variables[varname]
     data = ncvar[:].squeeze()
-    masked_data = ma.masked_values(data, 0, atol=5e-8)
 
     try:
         units = ncvar.units
@@ -124,16 +122,18 @@ def load(ifile_fp, varname):
         else:
             raise IndexError
     except IndexError:
-        print '\nDepths not given for {} in {}.'.format(varname, ifile)
-        raise
+        raise SystemExit('\nDepths not given for {} in {}.'.format(varname, ifile))
 
     lon = np.linspace(0, 360, 721)
     lat = np.linspace(40, 90, 101)
 
-    dates = num2date(nc['time_counter'][:], units=nc['time_counter'].units, calendar=nc['time_counter'].calendar)
-    years = [x.year for x in dates]
+    try:
+        dates = num2date(nc['time_counter'][:], units=nc['time_counter'].units, calendar=nc['time_counter'].calendar)
+        years = [x.year for x in dates]
+    except IndexError:
+        years = [0]
 
-    return masked_data, units, lon, lat, depth, dimensions, years
+    return data, units, lon, lat, depth, dimensions, years
 
 
 def corr(obs, data, weights=None):
