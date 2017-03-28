@@ -66,7 +66,7 @@ plots = [
     # {'ifile': ifile,
     #  'plot_type': 'npolar_map',
     #  'plot_depth': 10,
-    #  'variables': ['PHYC', 'DCHL'],
+    #  'variables': ['PHYC', ],
     #  },
     # {'ifile': ifile,
     #  'plot_type': 'npolar_map',

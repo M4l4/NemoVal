@@ -5,7 +5,6 @@ version 0.2
 
 malachitehmiller@gmail.com, 03/2017
 """
-import copy
 import os
 import shutil
 import subprocess
@@ -59,7 +58,63 @@ def default_pcolor_args(data, anom=False):
 
 
 def load(ifile_fp, varname):
+    path, ifile = os.path.split(ifile_fp)
 
+    if not os.path.isfile('remapped/yearmean_{}'.format(ifile)):
+        try:
+            import cdo
+            cdo = cdo.Cdo()
+            cdo.env = {'REMAP EXTRAPOLATE': 'off'}
+        except ImportError:
+            print 'CDO must be installed to preproces files.'
+            raise
+        cdo.yearmean(input=ifile_fp, output='remapped/yearmean_' + ifile)
+        with Dataset('parameters/masks.nc', 'r') as mask, Dataset('remapped/yearmean_' + ifile, 'a') as to_mask:
+                for var in to_mask.variables:
+                    if len(to_mask[var].shape) == 4:
+                        for i in range(0, to_mask[var].shape[0]):
+                            to_mask[var][i, :, :, :] = ma.masked_where(
+                                np.logical_not(np.array(mask['tmask'][0, :, :, :], dtype=bool)),
+                                np.array(to_mask[var][i, :, :, :]))[:]
+
+    with Dataset('remapped/yearmean_' + ifile, 'r') as nc:
+
+        ncvar = nc.variables[varname]
+        data = ncvar[:].squeeze()
+
+        try:
+            units = ncvar.units
+        except AttributeError:
+            print 'Units not given for {} in {}, leaving empty.'.format(varname, ifile)
+            units = ''
+
+        dimensions = ncvar.dimensions
+
+        try:
+            for dimension in dimensions:
+                if 'depth' in dimension.lower():
+                    depth = nc.variables[dimension][:]
+                    break
+            else:
+                raise IndexError
+        except IndexError:
+            raise SystemExit('\nDepths not given for {} in {}.'.format(varname, ifile))
+
+        try:
+            dates = num2date(nc['time_counter'][:], units=nc['time_counter'].units, calendar=nc['time_counter'].calendar)
+            years = [x.year for x in dates]
+        except IndexError:
+            years = [0]
+
+        lon = nc.variables['nav_lon']
+        lon = lon[:].squeeze()
+        lat = nc.variables['nav_lat']
+        lat = lat[:].squeeze()
+
+    return data, units, lon, lat, depth, dimensions, years
+
+
+def load_remap(ifile_fp, varname):
     path, ifile = os.path.split(ifile_fp)
 
     if not os.path.isfile('remapped/intlev_{}'.format(ifile)):
@@ -80,7 +135,7 @@ def load(ifile_fp, varname):
             with Dataset('parameters/masks.nc', 'r') as mask:
                 with Dataset(ifile_fp, 'r') as data:
                     if np.all(np.array(mask['nav_lat'][:]) == np.array(data['nav_lat'][:])) and \
-                       np.all(np.array(mask['nav_lon'][:]) == np.array(data['nav_lon'][:])):
+                            np.all(np.array(mask['nav_lon'][:]) == np.array(data['nav_lon'][:])):
                         cdo.yearmean(input=ifile_fp, output='temp_' + ifile)
                     else:
                         raise AttributeError
@@ -102,36 +157,36 @@ def load(ifile_fp, varname):
         print ifile, 'preprocessed.'
 
     remaped_file = 'remapped/intlev_' + ifile
-    nc = Dataset(remaped_file, 'r')
-    ncvar = nc.variables[varname]
-    data = ncvar[:].squeeze()
+    with Dataset(remaped_file, 'r') as nc:
+        ncvar = nc.variables[varname]
+        data = ncvar[:].squeeze()
 
-    try:
-        units = ncvar.units
-    except AttributeError:
-        print 'Units not given for {} in {}, leaving empty.'.format(varname, ifile)
-        units = ''
+        try:
+            units = ncvar.units
+        except AttributeError:
+            print 'Units not given for {} in {}, leaving empty.'.format(varname, ifile)
+            units = ''
 
-    dimensions = ncvar.dimensions
+        dimensions = ncvar.dimensions
 
-    try:
-        for dimension in dimensions:
-            if 'depth' in dimension.lower():
-                depth = nc.variables[dimension][:]
-                break
-        else:
-            raise IndexError
-    except IndexError:
-        raise SystemExit('\nDepths not given for {} in {}.'.format(varname, ifile))
+        try:
+            for dimension in dimensions:
+                if 'depth' in dimension.lower():
+                    depth = nc.variables[dimension][:]
+                    break
+            else:
+                raise IndexError
+        except IndexError:
+            raise SystemExit('\nDepths not given for {} in {}.'.format(varname, ifile))
+
+        try:
+            dates = num2date(nc['time_counter'][:], units=nc['time_counter'].units, calendar=nc['time_counter'].calendar)
+            years = [x.year for x in dates]
+        except IndexError:
+            years = [0]
 
     lon = np.linspace(0, 360, 721)
     lat = np.linspace(40, 90, 101)
-
-    try:
-        dates = num2date(nc['time_counter'][:], units=nc['time_counter'].units, calendar=nc['time_counter'].calendar)
-        years = [x.year for x in dates]
-    except IndexError:
-        years = [0]
 
     return data, units, lon, lat, depth, dimensions, years
 
@@ -198,7 +253,7 @@ def taylor_plot(data, obs, weights=None, ax_args=None):
         plt.setp(ax, **ax_args)
 
 
-def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel='', depth=None, anom=False):
+def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel='', depth=None, anom=False, remap=True):
     """Pcolor a var in a polar map, using ax if supplied"""
     # setup a basic polar map
 
@@ -211,14 +266,13 @@ def npolar_map(lon, lat, data, ax=None, ax_args=None, pcolor_args=None, cblabel=
     if not pcolor_args:
         pcolor_args = default_pcolor_args(data, anom=anom)
 
-    # for key, value in default_pcolor_args(data, anom=anom).iteritems():
-    #     if key not in pcolor_args or (pcolor_args[key] is None):
-    #         pcolor_args[key] = value
-
     m = Basemap(projection='npstere', boundinglat=55, lon_0=0, resolution='l', round=True, ax=ax)
 
-    lons, lats = np.meshgrid(lon, lat)
-    x, y = m(lons, lats)
+    if remap:
+        lon_mesh, lat_mesh = np.meshgrid(lon, lat)
+        x, y = m(lon_mesh, lat_mesh)
+    else:
+        x, y = m(lon, lat)
     graphed_data = m.pcolormesh(x, y, data, **pcolor_args)
 
     if ax_args:
@@ -341,7 +395,7 @@ def proc_plots(plots, obs4comp):
 
         # Loop over each variable in the plot, and save a plot for it.
         for x, v in enumerate(p['variables']):
-            data, units, lon, lat, depth, dimensions, years = load(p['ifile'], v)
+            data, units, lon, lat, depth, dimensions, years = load_remap(p['ifile'], v)
 
             if 'pcolor_args' not in p.keys():
                 p['pcolor_args'] = None
@@ -412,7 +466,7 @@ def proc_plots(plots, obs4comp):
                     print 'No comparison variable provided for', v
                     raise
                 try:
-                    obs_data, _, _, _, obs_depth, dimensions, years = load(obs4comp[comp_var], comp_var)
+                    obs_data, _, _, _, obs_depth, dimensions, years = load_remap(obs4comp[comp_var], comp_var)
                 except ValueError:
                     print(v + ' not provided on obs4comp dict, cannot compare')
                     raise
