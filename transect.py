@@ -15,8 +15,11 @@ ARC_TRANSECT = {}
 
 input_file = 'models/CanOE2_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'
 var = ['no3']
-transect_type = CAA_TRANSECT  # Must be one of CAA_TRANSECT, ARC_TRANSECT
+transect_type = CAA_TRANSECT  # Must be CAA_TRANSECT
 file_type = ['canoe']  # Must be one of ['canoe', 'pisces', 'cmoc'] or []. Determines the scaling applied to the data
+
+# Number of discrete colors in the color bar, default None
+color_bar_steps = None
 
 CANOE_SCALE_FACTORS = {
     'PHYC': 1,
@@ -101,6 +104,8 @@ for i in range(0, len(var)):
 
     index_lon = np.array([], dtype=int)
     index_lat = np.array([], dtype=int)
+
+    pcolor_args = pt.default_pcolor_args(data, color_bar_steps)
     for j in range(0, len(transect_type['lon'])-1):
         length = int(np.hypot(transect_type['lon'][j + 1] - transect_type['lon'][j],
                               transect_type['lat'][j + 1] - transect_type['lat'][j]))
@@ -116,7 +121,7 @@ for i in range(0, len(var)):
             transect_data = data[j, :, index_lat, index_lon]
         else:
             transect_data = data[:, index_lat, index_lon]
-        graphed_data = plt.pcolormesh(transect_data, cmap='viridis')
+        graphed_data = plt.pcolormesh(transect_data, **pcolor_args)
         color_bar = plt.colorbar(graphed_data, extend='both', format='%.3g')
         color_bar.set_label(units)
         plt.xticks([0, 23, 71, 140, 210, 253, 291, 304, 326, 377, 549],
@@ -128,5 +133,5 @@ for i in range(0, len(var)):
         for k in range(0, len(yticks)):
             yticks[k] = '{:.2f}'.format(depths[int(yticks[k])])
         ax.set_yticklabels(yticks, va='top')
-        plot_name = 'plots/{}_{}_{}.pdf'.format(var[i], transect_type['str'], years[j])
+        plot_name = 'plots/{}_{}_{}_transect.pdf'.format(var[i], transect_type['str'], years[j])
         plt.savefig(plot_name, bbox_inches='tight')

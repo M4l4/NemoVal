@@ -46,28 +46,35 @@ obs4comp = {
 #
 #       'plot_type': 'npolar_map' or 'npolar_map_comp' or 'taylor_plot' (soon)
 #
-#       'depth': int specifying the depth to plot at. Default if not included: 0
+#       'remap': if ifile is on the NAA grid and 'plot_type' is 'npolar_map', set this to False to use the NAA grid
+#
+#       'depth': int specifying the depth to plot at
 #
 #       'variables': [str] of variables to plot
 #
 #       'compare_to': [str] of variables to make an anomaly with each item in 'variables'. There must be an equal number
 #                     of items in 'variables' and 'compare_to' if 'plot_type' is 'npolar_map_comp' or 'taylor_plot'.
 #
-#       'pcolor_args': [dict] option set of key-value pairs passed to pcolor
+#       'color_bar_steps': [int] Number of discrete colors in the color bar
 #
-#       'ax_args': [dict] optional set of key-value pairs used to set axis
-#                   attributes.
+#       'pcolor_args': [dict] optional set of key-value pairs passed to pcolor
 #
-#       'kwargs': [dict] for 'comp' plots, a dict containing pcolor_args and
-#                   ax_args dicts, for one or each of the keys 'data1_args',
-#                   'data2_args', 'anom_args'.
+#       'comp_args': [dict] same as 'pcolor_args' but for the comparison data
+#
+#       'anom_args': [dict] same as 'pcolor_args' but for the anomaly
+#
+#       'ax_args': [dict] optional set of key-value pairs used to set axis attributes.
+#
 #===================================================================================
 plots = [
-    # {'ifile': ifile,
-    #  'plot_type': 'npolar_map',
-    #  'plot_depth': 10,
-    #  'variables': ['PHYC', ],
-    #  },
+    {'ifile': ifile,
+     'plot_type': 'npolar_map',
+     'file_type': 'canoe',
+     'plot_depth': 0,
+     'variables': ['PHYC', ],
+     'remap': False,
+     'color_bar_steps': 5,
+     },
     # {'ifile': ifile,
     #  'plot_type': 'npolar_map',
     #  'plot_depth': 10,
@@ -84,10 +91,9 @@ plots = [
     #  'plot_type': 'npolar_map_comp',
     #  'variables': ['alk'],
     #  'compare_to': ['alk'],
-    #  'kwargs': {'data1_args': {'pcolor_args': {'vmin': 0e-3, 'vmax': 2.4e-3}},
-    #             'data2_args': {'pcolor_args': {'vmin': 1e-3, 'vmax': 2e-3}},
-    #             'anom_args': {'pcolor_args': {'vmin': -5e-6, 'vmax': 5e-6}}
-    #             }
+    #  'pcolor_args': {'vmin': 0e-3, 'vmax': 2.4e-3},
+    #  'comp_args': {'vmin': 1e-3, 'vmax': 2e-3},
+    #  'anom_args': {'vmin': -5e-6, 'vmax': 5e-6}
     #  },
     # {'ifile': ifile,
     #  'variables': ['alk'],
