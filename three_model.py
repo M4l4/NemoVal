@@ -11,8 +11,8 @@ pisces_file = 'models/PISCES_NAA-EPM032_365h_19840101_19841231_ptrc_T.nc'
 cmoc_file = 'models/CMOC_NAA-EPM032_365h_19840101_19931231_ptrc_T.nc'
 
 # Names of the variables to compare.
-canoe_vars = ['dic']
-pisces_cmoc_vars = ['dic']  # PISCES and CMOC should be the same....
+canoe_vars = ['alk']
+pisces_cmoc_vars = ['alk']  # PISCES and CMOC should be the same....
 
 # Target depth in metres to plot.
 target_depth = 10
@@ -21,13 +21,13 @@ target_depth = 10
 upper_colour_bar = []
 lower_colour_bar = []
 # Number of discrete colors in the color bar, default None
-color_bar_steps = 5
+color_bar_steps = None
 
 # Set to True to get a 2x3 plot with anomalies. If True, the data will be regrided to 1x1 degrees.
-anomaly = False
+anomaly = True
 
 # Variable name to compare to, must be  present in OBS.
-anom_vars = ['DIC']
+anom_vars = ['asd']
 
 # Set the scale of the colour bar of the anomalies.
 anom_upper_colour_bar = []
@@ -54,8 +54,8 @@ os.mkdir('./plots')
 for i in range(0, len(canoe_vars)):
     if anomaly:
         data1, units1, lon, lat, depths, dimensions, years1 = pt.load_remap(canoe_file, canoe_vars[i], 'canoe')
-        data2, _, _, _, _, _, years2 = pt.load_remap(pisces_file, pisces_cmoc_vars[i], 'pisces')
-        data3, _, _, _, _, _, years3 = pt.load_remap(cmoc_file, pisces_cmoc_vars[i], 'cmoc')
+        data2, units2, _, _, _, _, years2 = pt.load_remap(pisces_file, pisces_cmoc_vars[i], 'pisces')
+        data3, units3, _, _, _, _, years3 = pt.load_remap(cmoc_file, pisces_cmoc_vars[i], 'cmoc')
         try:
             anom_data, _, _, _, _, _, _ = pt.load_remap(OBS[anom_vars[i]], anom_vars[i])
         except KeyError:
@@ -66,8 +66,8 @@ for i in range(0, len(canoe_vars)):
 
     else:
         data1, units1, lon, lat, depths, dimensions, years1 = pt.load(canoe_file, canoe_vars[i], 'canoe')
-        data2, _, _, _, _, _, years2 = pt.load(pisces_file, pisces_cmoc_vars[i], 'pisces')
-        data3, _, _, _, _, _, years3 = pt.load(cmoc_file, pisces_cmoc_vars[i], 'cmoc')
+        data2, units2, _, _, _, _, years2 = pt.load(pisces_file, pisces_cmoc_vars[i], 'pisces')
+        data3, units3, _, _, _, _, years3 = pt.load(cmoc_file, pisces_cmoc_vars[i], 'cmoc')
 
     depth_index = (np.abs(depths - target_depth)).argmin()  # Find the nearest depth to the one requested
     plot_depth = depths[depth_index]
@@ -165,18 +165,18 @@ for i in range(0, len(canoe_vars)):
                 axes[1].text(0, .984, canoe_vars[i] + '\n' + str(year_list[j]), fontsize=12, transform=axes[1].transAxes)
                 if data2_multiyear:
                     year_index = years2.index(year_list[j])
-                    pt.npolar_map(lon, lat, data2[year_index, :, :], ax_args2, pargs, units1, plot_depth, axes[1],
+                    pt.npolar_map(lon, lat, data2[year_index, :, :], ax_args2, pargs, units2, plot_depth, axes[1],
                                   remap=False)
                 else:
-                    pt.npolar_map(lon, lat, data2, ax_args2, pargs, units1, plot_depth, axes[1], remap=False)
+                    pt.npolar_map(lon, lat, data2, ax_args2, pargs, units2, plot_depth, axes[1], remap=False)
 
                 axes[2].text(0, .984, canoe_vars[i] + '\n' + str(year_list[j]), fontsize=12, transform=axes[2].transAxes)
                 if data3_multiyear:
                     year_index = years3.index(year_list[j])
-                    pt.npolar_map(lon, lat, data3[year_index, :, :], ax_args3, pargs, units1, plot_depth, axes[2],
+                    pt.npolar_map(lon, lat, data3[year_index, :, :], ax_args3, pargs, units3, plot_depth, axes[2],
                                   remap=False)
                 else:
-                    pt.npolar_map(lon, lat, data3, ax_args3, pargs, units1, plot_depth, axes[2], remap=False)
+                    pt.npolar_map(lon, lat, data3, ax_args3, pargs, units3, plot_depth, axes[2], remap=False)
             else:
 
                 axes[0, 0].text(0, .984, canoe_vars[i] + '\n' + str(year_list[j]), fontsize=12,
@@ -199,12 +199,12 @@ for i in range(0, len(canoe_vars)):
                                 transform=axes[1, 1].transAxes)
                 if data2_multiyear:
                     year_index = years2.index(year_list[j])
-                    pt.npolar_map(lon, lat, data2[year_index, :, :], ax_args2, pargs, units1, plot_depth, axes[1, 0])
-                    pt.npolar_map(lon, lat, data2[year_index, :, :] - anom_data, ax_args5, anom_pargs, units1,
+                    pt.npolar_map(lon, lat, data2[year_index, :, :], ax_args2, pargs, units2, plot_depth, axes[1, 0])
+                    pt.npolar_map(lon, lat, data2[year_index, :, :] - anom_data, ax_args5, anom_pargs, units2,
                                   plot_depth, axes[1, 1], True)
                 else:
-                    pt.npolar_map(lon, lat, data2, ax_args2, pargs, units1, plot_depth, axes[1, 0])
-                    pt.npolar_map(lon, lat, data2 - anom_data, ax_args5, anom_pargs, units1, plot_depth, axes[1, 1],
+                    pt.npolar_map(lon, lat, data2, ax_args2, pargs, units2, plot_depth, axes[1, 0])
+                    pt.npolar_map(lon, lat, data2 - anom_data, ax_args5, anom_pargs, units2, plot_depth, axes[1, 1],
                                   True)
 
                 axes[2, 0].text(0, .984, canoe_vars[i] + '\n' + str(year_list[j]), fontsize=12,
@@ -213,12 +213,12 @@ for i in range(0, len(canoe_vars)):
                                 transform=axes[2, 1].transAxes)
                 if data3_multiyear:
                     year_index = years3.index(year_list[j])
-                    pt.npolar_map(lon, lat, data3[year_index, :, :], ax_args3, pargs, units1, plot_depth, axes[2, 0])
-                    pt.npolar_map(lon, lat, data3[year_index, :, :] - anom_data, ax_args6, anom_pargs, units1,
+                    pt.npolar_map(lon, lat, data3[year_index, :, :], ax_args3, pargs, units3, plot_depth, axes[2, 0])
+                    pt.npolar_map(lon, lat, data3[year_index, :, :] - anom_data, ax_args6, anom_pargs, units3,
                                   plot_depth, axes[2, 1], True)
                 else:
-                    pt.npolar_map(lon, lat, data3, ax_args3, pargs, units1, plot_depth, axes[2, 0])
-                    pt.npolar_map(lon, lat, data3 - anom_data, ax_args6, anom_pargs, units1, plot_depth, axes[2, 1],
+                    pt.npolar_map(lon, lat, data3, ax_args3, pargs, units3, plot_depth, axes[2, 0])
+                    pt.npolar_map(lon, lat, data3 - anom_data, ax_args6, anom_pargs, units3, plot_depth, axes[2, 1],
                                   True)
 
             if len(year_list) > 1:

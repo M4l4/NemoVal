@@ -62,15 +62,15 @@ def default_pcolor_args(data, steps=None, anom=False):
 def load(ifile_fp, varname, file_type=None):
     path, ifile = os.path.split(ifile_fp)
 
-    if not os.path.isfile('remapped/yearmean_{}'.format(ifile)):
+    if not os.path.isfile('remapped-data/yearmean_{}'.format(ifile)):
         try:
             import cdo
             cdo = cdo.Cdo()
             cdo.env = {'REMAP EXTRAPOLATE': 'off'}
         except ImportError:
             raise SystemExit('CDO must be installed to preproces files.')
-        cdo.yearmean(input=ifile_fp, output='remapped/yearmean_' + ifile)
-        with Dataset('parameters/masks.nc', 'r') as mask, Dataset('remapped/yearmean_' + ifile, 'a') as to_mask:
+        cdo.yearmean(input=ifile_fp, output='remapped-data/yearmean_' + ifile)
+        with Dataset('parameters/masks.nc', 'r') as mask, Dataset('remapped-data/yearmean_' + ifile, 'a') as to_mask:
             if file_type:
                 with open('parameters/scale_factors.json') as json_file:
                     var_defs = json.load(json_file)
@@ -83,7 +83,7 @@ def load(ifile_fp, varname, file_type=None):
                 if len(to_mask[var].shape) == 4:
                     to_mask[var][:] = np.ma.masked_invalid(np.where(mask['tmask'][0, ], to_mask[var][:], np.NaN))
 
-    with Dataset('remapped/yearmean_' + ifile, 'r') as nc:
+    with Dataset('remapped-data/yearmean_' + ifile, 'r') as nc:
 
         ncvar = nc.variables[varname]
         data = ncvar[:].squeeze()
@@ -124,7 +124,7 @@ def load(ifile_fp, varname, file_type=None):
 def load_remap(ifile_fp, varname, file_type=None):
     path, ifile = os.path.split(ifile_fp)
 
-    if not os.path.isfile('remapped/intlev_{}'.format(ifile)):
+    if not os.path.isfile('remapped-data/intlev_{}'.format(ifile)):
         try:
             import cdo
             cdo = cdo.Cdo()
@@ -150,27 +150,27 @@ def load_remap(ifile_fp, varname, file_type=None):
                     if file_type:
                         with open('parameters/scale_factors.json') as json_file:
                             var_defs = json.load(json_file)
+                            to_mask.set_auto_maskandscale(True)
                             for var in to_mask.variables:
                                 if var in var_defs[file_type].keys():
-                                    print var
                                     to_mask[var].setncattr('scale', var_defs[file_type][var][0])
                                     to_mask[var].units = var_defs[file_type][var][1]
                                     to_mask[var].long_name = var_defs[file_type][var][2]
                     for var in to_mask.variables:
                         if len(to_mask[var].shape) == 4:
-                            to_mask[var][:] = np.ma.masked_invalid(np.where(mask['tmask'][0, ], to_mask[var][:], np.NaN))
+                            to_mask[var][:] = np.ma.masked_invalid(np.where(mask['tmask'][0, ],
+                                                                            to_mask[var][:], np.NaN))
             cdo.intlevel(default_depths, input='-remapdis,parameters/default_grid temp_' + ifile,
-                         output='remapped/intlev_' + ifile, options='-L', force=False)
+                         output='remapped-data/intlev_' + ifile, options='-L', force=False)
             os.remove('temp_' + ifile)
         except (AttributeError, IndexError):
             print 'Data from {} is not on the NAA grid, no land mask applied.'.format(ifile)
-            # Year average ifile, and interpolate to 1/2x1/2 degrees
             cdo.intlevel(default_depths, input='-remapdis,parameters/default_grid -yearmean ' + ifile_fp,
                          output='remapped/intlev_' + ifile, options='-L', force=False)
         print ifile, 'preprocessed.'
 
-    remaped_file = 'remapped/intlev_' + ifile
-    with Dataset(remaped_file, 'r') as nc:
+    remapped_file = 'remapped-data/intlev_' + ifile
+    with Dataset(remapped_file, 'r') as nc:
         ncvar = nc.variables[varname]
         data = ncvar[:].squeeze()
 
@@ -305,12 +305,12 @@ def npolar_map(lon, lat, data, ax_args=None, pcolor_args=None, cblabel='', depth
         'fontsize': 14,
         'transform': ax.transAxes,
     }
+    x_coord = -0.1  # Lines up just about right with the 90° label, in three_model at least
 
     cb = m.colorbar(mappable=graphed_data, location='right', extend='both', format='%.3g')
     cb.set_label(r'${}$'.format(cblabel), fontsize=text_kwargs['fontsize'])
     cb.ax.tick_params(labelsize=text_kwargs['fontsize'])
 
-    x_coord = -0.103  # Lines up just about right with the 90° label, in three_model at least
     if anom:
         ax.text(x_coord, .1, 'min: {:.2g}'.format(data.min()), text_kwargs)
         ax.text(x_coord, .05, 'max: {:.2g}'.format(data.max()), text_kwargs)
@@ -399,7 +399,6 @@ def proc_plots(plots, obs4comp):
                 else:
                     data, units, lon, lat, depth, dimensions, years = load_remap(p['ifile'], v)
             except KeyError:
-                raise
                 data, units, lon, lat, depth, dimensions, years = load_remap(p['ifile'], v)
 
             # Check is ax_args exists, and if it has a title, if no title set to the varname
